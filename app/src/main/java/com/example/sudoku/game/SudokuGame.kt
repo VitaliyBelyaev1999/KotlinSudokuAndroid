@@ -27,56 +27,7 @@ class SudokuGame() {
     init {
         val cells = MutableList(9*9) {i -> Cell(i/9, i % 9, 0)}
 
-        /*cells[4].value=3
-        cells[4].isStartingCell=true
-        cells[7].value=8
-        cells[7].isStartingCell=true
-        cells[9].value=6
-        cells[9].isStartingCell=true
-        cells[10].value=3
-        cells[10].isStartingCell=true
-        cells[13].value=7
-        cells[13].isStartingCell=true
-        cells[17].value=9
-        cells[17].isStartingCell=true
-        cells[19].value=1
-        cells[19].isStartingCell=true
-        cells[22].value=6
-        cells[22].isStartingCell=true
-        cells[25].value=5
-        cells[25].isStartingCell=true
-        cells[27].value=8
-        cells[27].isStartingCell=true
-        cells[29].value=3
-        cells[29].isStartingCell=true
-        cells[38].value=2
-        cells[38].isStartingCell=true
-        cells[39].value=1
-        cells[39].isStartingCell=true
-        cells[44].value=8
-        cells[44].isStartingCell=true
-        cells[46].value=9
-        cells[46].isStartingCell=true
-        cells[48].value=4
-        cells[48].isStartingCell=true
-        cells[52].value=2
-        cells[52].isStartingCell=true
-        cells[55].value=2
-        cells[55].isStartingCell=true
-        cells[58].value=1
-        cells[58].isStartingCell=true
-        cells[60].value=7
-        cells[60].isStartingCell=true
-        cells[73].value=6
-        cells[73].isStartingCell=true
-        cells[75].value=5
-        cells[75].isStartingCell=true
-        cells[79].value=9
-        cells[79].isStartingCell=true*/
-
-
         generating(cells)
-
 
         cells[0].notes = mutableSetOf()
         board = Board(9, cells)
@@ -92,9 +43,7 @@ class SudokuGame() {
         cells: MutableList<Cell>?,
         textView: TextView,
         chronometer: Chronometer,
-        prefs: SharedPreferences,
-
-    ) {
+        prefs: SharedPreferences, ) {
         if (selectedRow == -1 || selectedCol == -1) return
         val cell = board.getCell(selectedRow, selectedCol)
         if (cell.isStartingCell) return
@@ -117,28 +66,30 @@ class SudokuGame() {
 
     fun updateSelectedCell(row: Int, col: Int) {
         val cell = board.getCell(row, col)
-        if (!cell.isStartingCell) {
+
             selectedRow = row
             selectedCol = col
             selectedCellLiveData.postValue(Pair(row, col))
 
             if (isTakingNotes) {
                 highlightedKeysLiveData.postValue(cell.notes)
-            }
+
         }
 
     }
 
     fun changeNoteTakingState() {
-        isTakingNotes = !isTakingNotes
-        isTakingNotesLiveData.postValue(isTakingNotes)
+        if(board.getCell(selectedRow,selectedCol).value==0) {
+            isTakingNotes = !isTakingNotes
+            isTakingNotesLiveData.postValue(isTakingNotes)
 
-        val curNotes = if (isTakingNotes) {
-            board.getCell(selectedRow, selectedCol).notes
-        } else {
-            setOf<Int>()
+            val curNotes = if (isTakingNotes) {
+                board.getCell(selectedRow, selectedCol).notes
+            } else {
+                setOf<Int>()
+            }
+            highlightedKeysLiveData.postValue(curNotes)
         }
-        highlightedKeysLiveData.postValue(curNotes)
     }
 
     fun delete(cells: MutableList<Cell>?,textView: TextView,chronometer: Chronometer,prefs: SharedPreferences) {
@@ -280,8 +231,11 @@ class SudokuGame() {
     }
 
     fun generating(cells:MutableList<Cell>?) {
-        for(i in 0..80)
-            cells!![i].isStartingCell=false
+        for(i in 0..80) {
+            cells!![i].isStartingCell = false
+            cells[i].notes.clear()
+            cells[i].isConflict=false
+        }
         for (i in 0..size-1) {
             for (j in 0..size-1) {
                 cells!![i * size + j].value = (i*sqrtSize + i/sqrtSize + j) % (size) + 1
@@ -297,7 +251,7 @@ class SudokuGame() {
                 4 -> swapColumnsArea(cells)
             }
         }
-        var n: Int = 45
+        var n: Int = 40
         for (i in 0..n) {
             var deleted: Int = Random.nextInt(0, 81)
             if (cells!![deleted].value == 0) n++

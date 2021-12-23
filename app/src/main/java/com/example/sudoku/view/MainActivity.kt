@@ -68,8 +68,12 @@ class MainActivity : AppCompatActivity(), SudokuBoardView.OnTouchListener {
         newGameButton.setOnClickListener(){
             viewModel.sudokuGame.generating(sudokuBoardView.cells)
             chronometer.setBase(SystemClock.elapsedRealtime())
-
+            chronometer.start()
+            viewModel.sudokuGame.selectedCellLiveData.observe(this, Observer { updateSelectedCellUI(it) })
             viewModel.sudokuGame.cellsLiveData.observe(this, Observer { updateCells(it as MutableList<Cell>?) })
+            viewModel.sudokuGame.isTakingNotesLiveData.observe(this, Observer { updateNoteTakingUI(it) })
+            viewModel.sudokuGame.highlightedKeysLiveData.observe(this, Observer { updateHighlitedKeys(it) })
+            textVictory.setText("")
 
         }
     }
