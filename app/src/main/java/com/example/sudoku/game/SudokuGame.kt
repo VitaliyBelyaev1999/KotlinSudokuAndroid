@@ -1,14 +1,12 @@
 package com.example.sudoku.game
 
 import androidx.lifecycle.MutableLiveData
-import com.example.sudoku.view.MainActivity
-import com.example.sudoku.view.custom.SudokuBoardView
-import android.content.Context
-import android.util.AttributeSet
-import android.view.View
-
+import android.widget.Chronometer
+import android.content.SharedPreferences
+import android.os.SystemClock
 import android.widget.TextView
-import kotlinx.android.synthetic.main.activity_main.view.*
+import kotlinx.android.synthetic.main.activity_main.*
+import kotlin.random.Random
 
 
 class SudokuGame() {
@@ -27,9 +25,9 @@ class SudokuGame() {
     private val board: Board
 
     init {
-        val cells = List(9*9) {i -> Cell(i/9, i % 9, 0)}
+        val cells = MutableList(9*9) {i -> Cell(i/9, i % 9, 0)}
 
-        cells[4].value=3
+        /*cells[4].value=3
         cells[4].isStartingCell=true
         cells[7].value=8
         cells[7].isStartingCell=true
@@ -74,7 +72,11 @@ class SudokuGame() {
         cells[75].value=5
         cells[75].isStartingCell=true
         cells[79].value=9
-        cells[79].isStartingCell=true
+        cells[79].isStartingCell=true*/
+
+
+        generating(cells)
+
 
         cells[0].notes = mutableSetOf()
         board = Board(9, cells)
@@ -85,7 +87,14 @@ class SudokuGame() {
     }
 
 
-    fun handleInput(number: Int,cells:MutableList<Cell>?,textView: TextView) {
+    fun handleInput(
+        number: Int,
+        cells: MutableList<Cell>?,
+        textView: TextView,
+        chronometer: Chronometer,
+        prefs: SharedPreferences,
+
+    ) {
         if (selectedRow == -1 || selectedCol == -1) return
         val cell = board.getCell(selectedRow, selectedCol)
         if (cell.isStartingCell) return
@@ -102,7 +111,7 @@ class SudokuGame() {
             checkConflictResolution(selectedRow,selectedCol,cells)
         }
         deleteConflict(cells);
-        checkVictory(cells,textView)
+        checkVictory(cells,textView,chronometer,prefs)
         cellsLiveData.postValue(board.cells)
     }
 
@@ -132,7 +141,8 @@ class SudokuGame() {
         highlightedKeysLiveData.postValue(curNotes)
     }
 
-    fun delete(cells: MutableList<Cell>?,textView: TextView) {
+    fun delete(cells: MutableList<Cell>?,textView: TextView,chronometer: Chronometer,prefs: SharedPreferences) {
+
         val cell = board.getCell(selectedRow, selectedCol)
         if (isTakingNotes) {
             cell.notes.clear()
@@ -141,7 +151,7 @@ class SudokuGame() {
             cell.value = 0
         }
         deleteConflict(cells);
-        checkVictory(cells,textView)
+        checkVictory(cells,textView,chronometer,prefs)
         cellsLiveData.postValue(board.cells)
 
     }
@@ -183,14 +193,124 @@ class SudokuGame() {
         cells!!.set(row * 9 + col, selectedCell)
         return hasConflict;
     }
-    fun checkVictory(cells:MutableList<Cell>?,textView: TextView)
+    private fun checkVictory(cells:MutableList<Cell>?,textView: TextView, chronometer: Chronometer, prefs: SharedPreferences)
     {
         var lose=false
         cells?.forEach {
             if (it.isConflict||checkConflictResolution(it.row,it.col,cells)||it.value==0) lose=true
         }
         if(!lose) {
-            textView.setText("Victory")
+          textView.setText("Victory!")
+            chronometer.stop()
+            val e:SharedPreferences.Editor = prefs.edit()
+            e.putLong((SystemClock.elapsedRealtime() - chronometer.base).toString(),(SystemClock.elapsedRealtime() - chronometer.base))
+            e.apply()
+            var times:MutableMap<String,Long> = prefs.all as MutableMap<String, Long>
+
+            var timesTemp:MutableList<Long> = mutableListOf()
+
+            for ((key,value) in times)
+                timesTemp.add(value)
+            timesTemp=timesTemp.toSortedSet().toMutableList()
+            while(timesTemp.size>8)
+                timesTemp.removeLast()
+            e.clear()
+            for (value in timesTemp)
+                e.putLong(value.toString(),value)
         }
-}
+    }
+
+    private fun transposing(cells:MutableList<Cell>?) {
+        for (i in 0..size-1) {
+            for (j in 0..size-1) {
+                if (j > i) {
+                    val a = cells!![i*size + j].value
+                    cells[i*size + j].value = cells[j * size + i].value
+                    cells[j * size + i].value = a
+                }
+            }
+        }
+    }
+
+    private fun swapRowsSmall(cells:MutableList<Cell>?) {
+        val area = Random.nextInt(0, 3)
+        val line1 = Random.nextInt(0, 3)
+        var line2 = Random.nextInt(0, 3)
+        val n1 = area * sqrtSize + line1
+        while (line1 == line2) {
+            line2 = Random.nextInt(0, 3)
+        }
+        val n2 = area * sqrtSize + line2
+
+        for (i in 0..size-1) {
+            val a = cells!![n1*size+i].value
+            cells[n1*size+i].value = cells[n2*size+i].value
+            cells[n2*size+i].value = a
+        }
+    }
+
+    private fun swapColumnsSmall(cells:MutableList<Cell>?) {
+        transposing(cells)
+        swapRowsSmall(cells)
+        transposing(cells)
+    }
+
+    private fun swapRowsArea(cells:MutableList<Cell>?) {
+        val area1 = Random.nextInt(0, 3)
+        var area2 = Random.nextInt(0, 3)
+
+        while (area1 == area2) {
+            area2 = Random.nextInt(0, 3)
+        }
+
+        for (i in 0..sqrtSize-1) {
+            for (j in 0..size-1) {
+                val a = cells!![(area1*sqrtSize+i)*size+j].value
+                cells[(area1*sqrtSize+i)*size+j].value = cells[(area2*sqrtSize+i)*size+j].value
+                cells[(area2*sqrtSize+i)*size+j].value = a
+            }
+        }
+
+    }
+
+    private fun swapColumnsArea(cells:MutableList<Cell>?) {
+        transposing(cells)
+        swapRowsArea(cells)
+        transposing(cells)
+    }
+
+    fun generating(cells:MutableList<Cell>?) {
+        for(i in 0..80)
+            cells!![i].isStartingCell=false
+        for (i in 0..size-1) {
+            for (j in 0..size-1) {
+                cells!![i * size + j].value = (i*sqrtSize + i/sqrtSize + j) % (size) + 1
+            }
+        }
+        for (i in 0..500) {
+            var choise: Int = Random.nextInt(0, 5)
+            when (choise) {
+                0 -> transposing(cells)
+                1 -> swapRowsSmall(cells)
+                2 -> swapColumnsSmall(cells)
+                3 -> swapRowsArea(cells)
+                4 -> swapColumnsArea(cells)
+            }
+        }
+        var n: Int = 45
+        for (i in 0..n) {
+            var deleted: Int = Random.nextInt(0, 81)
+            if (cells!![deleted].value == 0) n++
+            else
+                cells[deleted].value = 0;
+
+
+        }
+        for (i in 0..80) if (cells!![i].value != 0) cells[i].isStartingCell = true
+
+        isTakingNotesLiveData.postValue(isTakingNotes)
+
+    }
+
+
 }
